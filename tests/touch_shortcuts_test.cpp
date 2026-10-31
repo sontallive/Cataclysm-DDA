@@ -105,6 +105,7 @@ TEST_CASE( "touch_shortcuts_handle_empty_and_zero_size_windows", "[touch_shortcu
     bar.update( "menu", { shortcut_key( 'a' ) } );
     CHECK_FALSE( bar.press( 0, 0 ) );
     bar.resize( 1280, 800, 56 );
+    CHECK_FALSE( bar.contains( 1200, 770 ) );
     CHECK( bar.press( 20, 770 ) );
     bar.update( "empty", {} );
     CHECK_FALSE( bar.release( 20, 770 ) );

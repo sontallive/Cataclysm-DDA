@@ -93,8 +93,15 @@ float bar::button_width() const
 
 bool bar::contains( float x, float y ) const
 {
-    return !ordered.empty() && window_width > 0 && height > 0 &&
-           x >= 0 && x < window_width && y >= top() && y < window_height;
+    if( ordered.empty() || window_width <= 0 || height <= 0 ||
+        x < 0 || x >= window_width || y < top() || y >= window_height ) {
+        return false;
+    }
+    const int slot = static_cast<int>( x / button_width() );
+    // Only painted buttons own input; transparent unused slots remain usable
+    // by the underlying menu, including on the last page.
+    return entry_for_slot( slot ) >= 0 ||
+           ( paged() && ( slot == 0 || slot == columns() - 1 ) );
 }
 
 int bar::slot_at( float x, float y ) const
