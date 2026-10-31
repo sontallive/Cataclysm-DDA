@@ -105,3 +105,14 @@ inventory/text entry, custom modified bindings, recent-key ordering, paging,
 touch/mouse deduplication, drag-out cancellation, resize/focus loss and HiDPI.
 Automated SDL event tests and macOS previews do not count as physical Steam Deck
 touch/controller verification.
+
+### Current validation limits
+
+The stable port passes the isolated model, SDL event and context tests, and a
+complete macOS tiles/sound development build. The macOS preview has an unresolved
+redraw problem: unchanged text can disappear after menu transitions. It was
+reproduced with the shortcut flag both enabled and disabled, using both Homebrew's
+SDL2 compatibility runtime and the official native SDL2 2.32.10 runtime. Its cause
+has not been established; disabling the flag is not a pristine-upstream baseline.
+Linux package CI and physical Steam Deck visual/touch acceptance remain separate
+requirements before treating this patch as ready for normal use.
