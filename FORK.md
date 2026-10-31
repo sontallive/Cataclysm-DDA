@@ -1,3 +1,7 @@
+> **Historical experimental prototype.** Maintained Linux builds now use the
+> `stable` branch, pinned to official stable releases. This branch's build entry
+> point is disabled; the documentation below describes the earlier prototype.
+
 # CataZoo Linux build fork
 
 This fork starts from upstream CDDA commit
