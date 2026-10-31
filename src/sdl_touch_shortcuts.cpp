@@ -27,6 +27,8 @@ bool active = false;
 bool focused = true;
 bool mouse_owned = false;
 bool suppress_touch_mouse = false;
+// SDL2's SDL_TOUCH_MOUSEID macro contains a C cast, rejected by CDDA's flags.
+constexpr Uint32 touch_mouse_id = static_cast<Uint32>( -1 );
 std::optional<SDL_FingerID> finger_owned;
 touch_shortcuts::bar shortcuts;
 int window_width = 0;
@@ -237,7 +239,7 @@ bool handle_event( const SDL_Event &event, std::optional<input_event> &selected 
             return false;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-            if( event.button.which == SDL_TOUCH_MOUSEID && suppress_touch_mouse ) {
+            if( event.button.which == touch_mouse_id && suppress_touch_mouse ) {
                 if( event.type == SDL_MOUSEBUTTONUP ) {
                     suppress_touch_mouse = false;
                 }
@@ -260,7 +262,7 @@ bool handle_event( const SDL_Event &event, std::optional<input_event> &selected 
             }
             return shortcuts.contains( event.button.x, event.button.y );
         case SDL_MOUSEMOTION:
-            if( event.motion.which == SDL_TOUCH_MOUSEID && suppress_touch_mouse ) {
+            if( event.motion.which == touch_mouse_id && suppress_touch_mouse ) {
                 return true;
             }
             if( mouse_owned ) {
