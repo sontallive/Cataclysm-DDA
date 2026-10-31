@@ -2964,7 +2964,7 @@ talk_topic dialogue::opt( dialogue_window &d_win, const talk_topic &topic )
     std::vector<talk_data> response_lines;
     std::vector<input_event> response_hotkeys;
     const auto generate_response_lines = [&]() {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
         ctxt.get_registered_manual_keys().clear();
 #endif
         const hotkey_queue &queue = hotkey_queue::alphabets();
@@ -2975,8 +2975,8 @@ talk_topic dialogue::opt( dialogue_window &d_win, const talk_topic &topic )
             const talk_data &td = response.create_option_line( *this, evt, d_win.is_computer );
             response_lines.emplace_back( td );
             response_hotkeys.emplace_back( evt );
-#if defined(__ANDROID__)
-            ctxt.register_manual_key( evt.get_first_input(), td.text );
+#if defined(__ANDROID__) || defined(TILES)
+            ctxt.register_manual_key( evt, td.text );
 #endif
             evt = ctxt.next_unassigned_hotkey( queue, evt );
         }

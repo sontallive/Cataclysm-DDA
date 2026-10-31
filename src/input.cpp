@@ -890,8 +890,10 @@ int input_manager::get_previously_pressed_key() const
 
 void input_manager::wait_for_any_key()
 {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
     input_context ctxt( "WAIT_FOR_ANY_KEY", keyboard_mode::keycode );
+    ctxt.register_manual_key( input_event( keycode::return_, input_event_t::keyboard_code ),
+                              _( "Continue" ) );
 #endif
     while( true ) {
         const input_event evt = inp_mngr.get_input_event();

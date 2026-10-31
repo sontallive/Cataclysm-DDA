@@ -47,6 +47,7 @@
 #include "get_version.h"
 #include "help.h"
 #include "input.h"
+#include "sdl_touch_shortcuts.h"
 #include "main_menu.h"
 #include "mapsharing.h"
 #include "memory_fast.h"
@@ -422,6 +423,18 @@ cli_opts parse_commandline( int argc, const char **argv )
                 }
             },
             {
+#if defined(TILES) && !defined(__ANDROID__)
+                "--touch-shortcuts", {},
+                "Show a touchable contextual shortcut bar at the bottom of the game window (off by default).",
+                section_accessibility,
+                0,
+                []( int, const char ** ) -> int {
+                    sdl_touch_shortcuts::enable();
+                    return 0;
+                }
+            },
+            {
+#endif
                 "--disable-ascii-art", {},
                 "Disable aesthetic ascii art in menus and descriptions.",
                 section_accessibility,

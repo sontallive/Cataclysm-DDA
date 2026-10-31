@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <optional>
 #include <set>
@@ -8,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
 #include <list>
 #endif
 
@@ -41,14 +43,14 @@ class input_context
 {
         friend class keybindings_ui;
     public:
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
         // Whatever's on top is our current input context.
         static std::list<input_context *> input_context_stack;
 #endif
 
         input_context() : registered_any_input( false ), category( "default" ),
             coordinate_input_received( false ), handling_coordinate_input( false ) {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
             input_context_stack.push_back( this );
             allow_text_entry = false;
 #endif
@@ -61,34 +63,64 @@ class input_context
             : registered_any_input( false ), category( category ),
               coordinate_input_received( false ), handling_coordinate_input( false ),
               preferred_keyboard_mode( preferred_keyboard_mode ) {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
             input_context_stack.push_back( this );
             allow_text_entry = false;
 #endif
             register_action( "toggle_language_to_en" );
         }
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
+        // Every copied context needs its own stack entry; assignment keeps the
+        // destination's lifetime/position rather than copying a raw stack pointer.
+        input_context( const input_context &other ) : input_context() {
+            *this = other;
+        }
+
+        class scoped_activation
+        {
+            public:
+                explicit scoped_activation( input_context &context ) : context( context ) {
+                    input_context_stack.push_back( &context );
+                }
+                ~scoped_activation() {
+                    const auto found = std::find( input_context_stack.rbegin(),
+                                                  input_context_stack.rend(), &context );
+                    if( found != input_context_stack.rend() ) {
+                        input_context_stack.erase( std::next( found ).base() );
+                    }
+                }
+                scoped_activation( const scoped_activation & ) = delete;
+                scoped_activation &operator=( const scoped_activation & ) = delete;
+            private:
+                input_context &context;
+        };
+
         virtual ~input_context() {
             input_context_stack.remove( this );
         }
 
-        // HACK: hack to allow creating manual keybindings for getch() instances, uilists etc. that don't use an input_context outside of the Android version
+        // Manual screen hotkeys shared by Android and desktop touch shortcuts.
         struct manual_key {
-            manual_key( int _key, const std::string &_text ) : key( _key ), text( _text ) {}
+            manual_key( int _key, const std::string &_text ) : key( _key ), text( _text ),
+                event( _key, input_event_t::keyboard_char ) {}
+            manual_key( const input_event &_event, const std::string &_text ) :
+                key( _event.get_first_input() ), text( _text ), event( _event ) {}
             int key;
             std::string text;
+            input_event event;
             bool operator==( const manual_key &other ) const {
-                return key == other.key && text == other.text;
+                return event == other.event && text == other.text;
             }
         };
 
         // If true, prevent virtual keyboard from dismissing after a key press while this input context is active.
         // NOTE: This won't auto-bring up the virtual keyboard, for that use sdltiles.cpp is_string_input()
-        bool allow_text_entry;
+        bool allow_text_entry = false;
 
         void register_manual_key( manual_key mk );
         void register_manual_key( int key, const std::string text = "" );
+        void register_manual_key( const input_event &event, const std::string &text );
 
         std::string get_action_name_for_manual_key( int key ) {
             for( const auto &manual_key : registered_manual_keys ) {
@@ -125,7 +157,9 @@ class input_context
             next_action = other.next_action;
             iso_mode = other.iso_mode;
             action_name_overrides = other.action_name_overrides;
+            edittext = other.edittext;
             timeout = other.timeout;
+            preferred_keyboard_mode = other.preferred_keyboard_mode;
             return *this;
         }
 
@@ -416,7 +450,7 @@ class input_context
         input_event first_unassigned_hotkey( const hotkey_queue &queue ) const;
         input_event next_unassigned_hotkey( const hotkey_queue &queue, const input_event &prev ) const;
     private:
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
         std::vector<manual_key> registered_manual_keys;
 #endif
         std::vector<std::string> registered_actions;

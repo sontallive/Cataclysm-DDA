@@ -1,4 +1,5 @@
 #include "input_context.h"
+#include "sdl_touch_shortcuts.h"
 
 #include <algorithm>
 #include <array>
@@ -153,7 +154,7 @@ const std::string &input_context::input_to_action( const input_event &inp ) cons
     return CATA_ERROR;
 }
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
 std::list<input_context *> input_context::input_context_stack;
 
 void input_context::register_manual_key( manual_key mk )
@@ -176,6 +177,20 @@ void input_context::register_manual_key( int key, const std::string text )
         }
 
     registered_manual_keys.push_back( manual_key( key, text ) );
+}
+
+void input_context::register_manual_key( const input_event &event, const std::string &text )
+{
+    if( event.sequence.size() != 1 ) {
+        return;
+    }
+    const auto found = std::find_if( registered_manual_keys.begin(), registered_manual_keys.end(),
+                                     [&]( const manual_key & key ) {
+        return key.event == event;
+    } );
+    if( found == registered_manual_keys.end() ) {
+        registered_manual_keys.emplace_back( event, text );
+    }
 }
 #endif
 
@@ -433,6 +448,9 @@ const std::string &input_context::handle_input()
 
 const std::string &input_context::handle_input( const int timeout )
 {
+#if defined(__ANDROID__) || defined(TILES)
+    const scoped_activation active_context( *this );
+#endif
     const int old_timeout = inp_mngr.get_timeout();
     if( timeout >= 0 ) {
         inp_mngr.set_timeout( timeout );
@@ -488,6 +506,9 @@ const std::string &input_context::handle_input( const int timeout )
         // enters something proper.
     }
     inp_mngr.set_timeout( old_timeout );
+#if defined(TILES) && !defined(__ANDROID__)
+    sdl_touch_shortcuts::remember( *this, next_action );
+#endif
     return *result;
 }
 

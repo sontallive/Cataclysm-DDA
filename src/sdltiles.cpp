@@ -1,5 +1,6 @@
 #include "cursesdef.h" // IWYU pragma: associated
 #include "sdltiles.h" // IWYU pragma: associated
+#include "sdl_touch_shortcuts.h"
 
 #include "cuboid_rectangle.h"
 #include "point.h"
@@ -563,6 +564,11 @@ void refresh_display()
         draw_quick_shortcuts();
     }
     draw_virtual_joystick();
+#else
+    if( font ) {
+        sdl_touch_shortcuts::sync( WindowWidth, WindowHeight, font->height );
+        sdl_touch_shortcuts::draw( renderer, geometry, *font );
+    }
 #endif
     SDL_RenderPresent( renderer.get() );
     SetRenderTarget( renderer, display_buffer );
@@ -2978,7 +2984,25 @@ static void CheckMessages()
     bool render_target_reset = false;
     using cata::options::mouse;
 
+#if !defined(__ANDROID__)
+    if( font ) {
+        sdl_touch_shortcuts::sync( WindowWidth, WindowHeight, font->height );
+    }
+#endif
     while( SDL_PollEvent( &ev ) ) {
+#if !defined(__ANDROID__)
+        std::optional<input_event> shortcut;
+        if( sdl_touch_shortcuts::handle_event( ev, shortcut ) ) {
+            needupdate = true;
+            if( shortcut ) {
+                last_input = *shortcut;
+                sdl_touch_shortcuts::forward_to_imgui( *shortcut, window.get() );
+                try_sdl_update();
+                return;
+            }
+            continue;
+        }
+#endif
         imclient->process_input( &ev );
         switch( ev.type ) {
             case SDL_WINDOWEVENT:
