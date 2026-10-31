@@ -93,10 +93,25 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-      - uses: ./.github/actions/build-sdl3-shaders
+      - name: Test shortcut input and history
+        run: |
+          clang++ -std=c++17 -O1 -g -fsanitize=address,undefined \
+            -Isrc -Itests -isystem src/third-party -DCATCH_CONFIG_MAIN \
+            tests/touch_shortcuts_test.cpp src/touch_shortcuts.cpp \
+            -o "$RUNNER_TEMP/touch-shortcuts-test"
+          "$RUNNER_TEMP/touch-shortcuts-test" '[touch_shortcuts]'
+      - name: Compile Linux shaders
+        run: |
+          sudo apt-get update && sudo apt-get install -y glslang-tools
+          python3 tools/build_shaders.py --formats spv --stamp data/shaders/build-spv.stamp
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          shader-formats: spv
-          shader-stamp: data/shaders/build-spv.stamp
+          name: cdda-shaders
+          path: |
+            data/shaders/*.spv
+            data/shaders/build-spv.stamp
+          if-no-files-found: error
+          retention-days: 7
 
   build:
     name: Linux x86_64 graphics and audio
@@ -160,7 +175,7 @@ jobs:
             echo "commit sha: $GITHUB_SHA"
             echo "commit url: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
             echo "translation release: $TRANSLATIONS_TAG"
-            echo 'fork status: build infrastructure only; touch shortcuts are not ported yet'
+            echo 'touch shortcuts: opt in with --touch-shortcuts (off by default)'
           } > VERSION.txt
       - name: Compile and package
         run: |
@@ -191,6 +206,7 @@ jobs:
           fi
           grep -E 'libSDL3.*verify/.*/lib/' "$RUNNER_TEMP/bundled-deps.txt"
           env -u LD_LIBRARY_PATH "$exe" --version
+          env -u LD_LIBRARY_PATH "$exe" --help | grep -- '--touch-shortcuts'
           printf 'Built Linux x86_64 package from %s. Download **cdda-linux-x86_64** below.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

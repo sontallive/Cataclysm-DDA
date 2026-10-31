@@ -74,6 +74,7 @@
 #include "sdl_quad_batch.h"
 #include "tileset_loader.h"
 #include "sdl_gamepad.h"
+#include "sdl_touch_shortcuts.h"
 #if defined(SDL_SOUND)
 #include "sound_backend.h"
 #endif
@@ -1207,6 +1208,11 @@ void refresh_display()
         draw_quick_shortcuts();
     }
     draw_virtual_joystick();
+#else
+    if( font ) {
+        sdl_touch_shortcuts::sync( WindowWidth, WindowHeight, font->height );
+        sdl_touch_shortcuts::draw( renderer, *font );
+    }
 #endif
     draw_gamepad_radial_menu();
     RenderPresent( renderer );
@@ -6133,7 +6139,26 @@ static void CheckMessages()
     int imgui_buf_w = 0;
     int imgui_buf_h = 0;
     get_display_buffer_dims( &imgui_buf_w, &imgui_buf_h );
+#if !defined(__ANDROID__)
+    if( font ) {
+        sdl_touch_shortcuts::sync( WindowWidth, WindowHeight, font->height );
+    }
+#endif
     while( SDL_PollEvent( &ev ) ) {
+#if !defined(__ANDROID__)
+        std::optional<input_event> shortcut;
+        if( sdl_touch_shortcuts::handle_event( ev, shortcut ) ) {
+            needupdate = true;
+            if( shortcut ) {
+                last_input = *shortcut;
+                sdl_touch_shortcuts::forward_to_imgui( *shortcut, imgui_buf_w, imgui_buf_h,
+                                                       scaling_factor );
+                try_sdl_update();
+                return;
+            }
+            continue;
+        }
+#endif
         // Build a display_buffer-coord copy for ImGui and gameplay
         // consumers. The raw `ev` stays in window coordinates so android
         // shortcut and joystick hit-tests see the same domain SDL emitted.

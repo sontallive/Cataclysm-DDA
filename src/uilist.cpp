@@ -897,11 +897,11 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
 {
     input_context ctxt = create_main_input_context();
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
     for( const auto &entry : entries ) {
         if( entry.enabled && entry.hotkey.has_value()
             && entry.hotkey.value() != input_event() ) {
-            ctxt.register_manual_key( entry.hotkey.value().get_first_input(), entry.txt );
+            ctxt.register_manual_key( entry.hotkey.value(), entry.txt );
         }
     }
 #endif

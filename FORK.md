@@ -1,8 +1,34 @@
 # CataZoo Linux build fork
 
 This fork starts from upstream CDDA commit
-`a768761b2544403c24fe3a6bc6eb604d65557ddf`. It currently adds build infrastructure
-only. Android's contextual touch shortcut bar has **not** been ported yet.
+`a768761b2544403c24fe3a6bc6eb604d65557ddf`. It adds Linux build infrastructure and
+a desktop port of Android's contextual touch shortcut strip.
+
+## Enable touch shortcuts
+
+The shortcut strip is **off by default**. Opt in for one game process:
+
+```sh
+./cataclysm-tiles --touch-shortcuts --userdir /path/to/userdata
+```
+
+Launchers can choose whether to pass `--touch-shortcuts` for each installation.
+The flag is advertised by `--help`; official builds without this patch do not
+support it. No persistent setting or automatic touchscreen detection enables it.
+
+The translucent strip at the bottom follows the live `input_context`, including
+menu hotkeys, NPC dialogue replies, mutations, and bionics. It uses the current
+keybindings, retains Shift/Ctrl/Alt modifiers, and moves recently used valid keys
+to the front within each context. Recent-key history lasts for the current game
+process. Additional keys are available using the strip's previous/next buttons.
+Touch or click a key to activate it on release; dragging off cancels it. Pressing
+a key displays its action description. Keyboard and controller input remain active.
+
+The desktop port uses the same registered actions and manual-hotkey metadata as
+Android, with a separate SDL adapter for desktop keycodes and mouse-emulated
+touch (as used by some Gamescope configurations). Android JNI, soft keyboard,
+vibration, joystick gestures, and nearby-world action heuristics are not enabled
+on Linux. Gameplay actions come from the active context and their current bindings.
 
 ## Build a Linux package
 

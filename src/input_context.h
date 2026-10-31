@@ -74,7 +74,7 @@ class input_context
 #if defined(__ANDROID__) || defined(TILES)
             input_context_stack.push( handle );
 #endif
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
             allow_text_entry = false;
 #endif
             register_action( "toggle_language_to_en" );
@@ -89,14 +89,14 @@ class input_context
 #if defined(__ANDROID__) || defined(TILES)
             input_context_stack.push( handle );
 #endif
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
             allow_text_entry = false;
 #endif
             register_action( "toggle_language_to_en" );
         }
 
         // Make a persistent input_context the stack top for this scope, so the
-        // Android shortcut bar (which reads the stack top) shows its actions
+        // touch shortcut bars (which read the stack top) show its actions
         // even when the screen redraws before polling input.
         class scoped_activation
         {
@@ -145,7 +145,7 @@ class input_context
             // suppress the conservative use-after-move alert on the per-member chain.
             // NOLINTBEGIN(bugprone-use-after-move)
             // Don't touch the handle
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
             registered_manual_keys = std::forward<Rhs>( other ).registered_manual_keys;
 #endif
             registered_actions = std::forward<Rhs>( other ).registered_actions;
@@ -165,19 +165,25 @@ class input_context
         }
 
 
-#if defined(__ANDROID__)
-        // HACK: hack to allow creating manual keybindings for getch() instances, uilists etc. that don't use an input_context outside of the Android version
+#if defined(__ANDROID__) || defined(TILES)
+        // Hotkeys handled directly by a screen, rather than named actions.
+        // Exposed to the Android and desktop touch shortcut bars.
         struct manual_key {
-            manual_key( int _key, const std::string &_text ) : key( _key ), text( _text ) {}
+            manual_key( int _key, const std::string &_text ) : key( _key ), text( _text ),
+                event( _key, input_event_t::keyboard_char ) {}
+            manual_key( const input_event &_event, const std::string &_text ) :
+                key( _event.get_first_input() ), text( _text ), event( _event ) {}
             int key;
             std::string text;
+            input_event event;
             bool operator==( const manual_key &other ) const {
-                return key == other.key && text == other.text;
+                return event == other.event && text == other.text;
             }
         };
 
         void register_manual_key( manual_key mk );
         void register_manual_key( int key, const std::string text = "" );
+        void register_manual_key( const input_event &event, const std::string &text );
 
         std::string get_action_name_for_manual_key( int key ) {
             for( const auto &manual_key : registered_manual_keys ) {
@@ -489,7 +495,7 @@ class input_context
         input_event first_unassigned_hotkey( const hotkey_queue &queue ) const;
         input_event next_unassigned_hotkey( const hotkey_queue &queue, const input_event &prev ) const;
     private:
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
         std::vector<manual_key> registered_manual_keys;
 #endif
         std::vector<std::string> registered_actions;
@@ -510,7 +516,7 @@ class input_context
     public:
         // If true, prevent virtual keyboard from dismissing after a key press while this input context is active.
         // NOTE: This won't auto-bring up the virtual keyboard, for that use sdltiles.cpp is_string_input()
-        bool allow_text_entry;
+        bool allow_text_entry = false;
     private:
         input_event next_action;
         int timeout = -1;

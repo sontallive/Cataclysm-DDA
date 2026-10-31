@@ -35,6 +35,7 @@
 #include "filesystem.h"
 #include "get_version.h"
 #include "input.h"
+#include "input_context.h"
 #include "loading_ui.h"
 #include "mod_manager.h"
 #include "options.h"
@@ -82,7 +83,6 @@
 #if defined(__ANDROID__)
 // used by android_version() function for __system_property_get().
 #include <sys/system_properties.h>
-#include "input_context.h"
 #endif
 
 #if (defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)) && !defined(CATA_IS_ON_BSD)
@@ -396,7 +396,7 @@ static void debug_error_prompt(
         wnoutrefresh( catacurses::stdscr );
     } );
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(TILES)
     input_context ctxt( "DEBUG_MSG", keyboard_mode::keycode );
     ctxt.register_manual_key( 'C' );
     ctxt.register_manual_key( 'I' );
