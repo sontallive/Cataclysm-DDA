@@ -118,11 +118,14 @@ void draw_label( const SDL_Renderer_Ptr &renderer, Font &font, const std::string
     if( scale <= 0.0f ) {
         return;
     }
-    RenderSetScale( renderer, scale, scale );
+    float base_x = 1.0f;
+    float base_y = 1.0f;
+    SDL_GetRenderScale( renderer.get(), &base_x, &base_y );
+    RenderSetScale( renderer, base_x * scale, base_y * scale );
     const int text_x = ( x + ( width - cells * font.width * scale ) * 0.5f ) / scale;
     const int text_y = ( y + ( height - font.height * scale ) * 0.5f ) / scale;
     font.OutputChar( renderer, text, point( text_x, text_y ), color );
-    RenderSetScale( renderer, 1.0f, 1.0f );
+    RenderSetScale( renderer, base_x, base_y );
 }
 } // namespace
 
@@ -163,9 +166,22 @@ void remember( input_context &context, const input_event &input )
 
 void draw( const SDL_Renderer_Ptr &renderer, Font &font )
 {
-    if( !active || !focused || shortcuts.entries().empty() ) {
+    if( !active || !focused || shortcuts.entries().empty() ||
+        window_width <= 0 || window_height <= 0 ) {
         return;
     }
+    // Hit testing uses logical window coordinates. Presenting uses drawable
+    // pixels, which can differ on HiDPI displays or when changing monitors.
+    int output_width = 0;
+    int output_height = 0;
+    GetRendererOutputSize( renderer, &output_width, &output_height );
+    float old_scale_x = 1.0f;
+    float old_scale_y = 1.0f;
+    SDL_BlendMode old_blend = SDL_BLENDMODE_NONE;
+    SDL_GetRenderScale( renderer.get(), &old_scale_x, &old_scale_y );
+    SDL_GetRenderDrawBlendMode( renderer.get(), &old_blend );
+    RenderSetScale( renderer, static_cast<float>( output_width ) / window_width,
+                    static_cast<float>( output_height ) / window_height );
     const auto &palette = windowsPalette;
     const auto brightest = std::max_element( palette.begin(), palette.end(),
         []( const SDL_Color & a, const SDL_Color & b ) {
@@ -205,7 +221,8 @@ void draw( const SDL_Renderer_Ptr &renderer, Font &font )
         draw_label( renderer, font, entry.input.long_description() + "  " + entry.description,
                     0, top - height, window_width, height, color );
     }
-    SetRenderDrawBlendMode( renderer, SDL_BLENDMODE_NONE );
+    SetRenderDrawBlendMode( renderer, old_blend );
+    RenderSetScale( renderer, old_scale_x, old_scale_y );
 }
 
 bool handle_event( const SDL_Event &event, std::optional<input_event> &selected )
