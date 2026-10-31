@@ -1,0 +1,87 @@
+name: Stable Linux x86_64 Build
+run-name: Stable Linux x86_64 · ${{ github.ref_name }} · run ${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the validated fork build as a GitHub prerelease
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stable-linux-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Stable Linux graphics and audio
+    if: github.ref == 'refs/heads/stable'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    outputs:
+      tag: ${{ steps.package.outputs.tag }}
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 64
+      - name: Verify official stable base and patch boundaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(python3 -c 'import json; print(json.load(open("fork/stable.json"))["tag"])')"
+          git fetch --depth=1 https://github.com/CleverRaven/Cataclysm-DDA.git "refs/tags/$tag:refs/tags/$tag"
+          gh api "repos/CleverRaven/Cataclysm-DDA/releases/tags/$tag" > "$RUNNER_TEMP/stable-release.json"
+          python3 fork/check_stable.py --release-json "$RUNNER_TEMP/stable-release.json"
+          python3 fork/tests/stable_policy_test.py
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-14 ccache gettext patchelf libncursesw5-dev \
+            libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev
+      - name: Test shortcut input and history
+        run: CXX=clang++-14 bash fork/test-shortcuts.sh
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .ccache
+          key: stable-linux-clang14-sdl2-${{ github.sha }}
+          restore-keys: stable-linux-clang14-sdl2-
+      - name: Build and validate stable package
+        id: package
+        run: bash fork/package-linux.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cdda-stable-linux-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish tested stable-based fork build
+    if: ${{ inputs.publish }}
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cdda-stable-linux-x86_64
+          path: dist
+      - name: Publish after validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" \
+            --title "CDDA stable + CataZoo touch shortcuts · $RELEASE_TAG" \
+            --prerelease --notes-file dist/VERSION.txt
