@@ -34,6 +34,14 @@ This is a custom preview based on the official stable release, not an upstream o
 Steam Deck hardware acceptance is pending. macOS preview has an unresolved redraw issue
 also observed with the shortcut flag disabled; Linux visual acceptance is still pending.
 NOTES
-gh release create "$(cat release-tag)" dist/* --target "$(cat release-commit)" \
-  --title "CDDA stable + CataZoo touch shortcuts · $(cat release-tag)" \
-  --prerelease --notes-file notes.txt
+# A maintainer may pre-create a draft when repository policy denies release
+# creation to GITHUB_TOKEN. Never replace an already published asset.
+if gh release view "$(cat release-tag)" --json isDraft --jq .isDraft > release-draft; then
+  test "$(cat release-draft)" = true
+  gh release upload "$(cat release-tag)" dist/*
+  gh release edit "$(cat release-tag)" --draft=false --prerelease --notes-file notes.txt
+else
+  gh release create "$(cat release-tag)" dist/* --verify-tag \
+    --title "CDDA stable + CataZoo touch shortcuts · $(cat release-tag)" \
+    --prerelease --notes-file notes.txt
+fi
