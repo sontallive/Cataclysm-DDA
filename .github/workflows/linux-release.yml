@@ -9,6 +9,11 @@ on:
         type: boolean
         default: false
 
+      existing_run:
+        description: Successful stable build run ID to publish without rebuilding (requires publish)
+        type: string
+        default: ""
+
 permissions:
   contents: read
 
@@ -19,7 +24,7 @@ concurrency:
 jobs:
   build:
     name: Stable Linux graphics and audio
-    if: github.ref == 'refs/heads/stable'
+    if: github.ref == 'refs/heads/stable' && inputs.existing_run == ''
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     outputs:
@@ -85,3 +90,22 @@ jobs:
           gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" \
             --title "CDDA stable + CataZoo touch shortcuts · $RELEASE_TAG" \
             --prerelease --notes-file dist/VERSION.txt
+
+  promote:
+    name: Publish an existing successful stable build
+    if: github.ref == 'refs/heads/stable' && inputs.publish && inputs.existing_run != ''
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Verify build provenance and publish its original artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_RUN: ${{ inputs.existing_run }}
+        run: bash fork/publish-existing.sh
